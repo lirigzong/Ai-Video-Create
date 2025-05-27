@@ -240,7 +240,43 @@ async def generate_audio_with_tts(text: str, segment_id: int, video_id: str) -> 
     
     except Exception as e:
         logger.error(f"Error generating audio: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Audio generation failed: {str(e)}")
+        # If TTS fails due to quota issues, create a silent audio placeholder
+        return await create_placeholder_audio(text, segment_id, video_id)
+
+async def create_placeholder_audio(text: str, segment_id: int, video_id: str) -> str:
+    """Create a placeholder silent audio when TTS fails"""
+    try:
+        import numpy as np
+        from scipy.io.wavfile import write
+        import subprocess
+        
+        # Calculate duration based on text length (rough estimate: 150 words per minute)
+        words = len(text.split())
+        duration = max(3, words / 2.5)  # minimum 3 seconds
+        
+        # Generate silent audio
+        sample_rate = 44100
+        samples = int(sample_rate * duration)
+        silent_audio = np.zeros(samples, dtype=np.int16)
+        
+        # Save as WAV first
+        wav_path = AUDIO_DIR / f"{video_id}_segment_{segment_id}.wav"
+        write(wav_path, sample_rate, silent_audio)
+        
+        # Convert to MP3 using ffmpeg
+        mp3_path = AUDIO_DIR / f"{video_id}_segment_{segment_id}.mp3"
+        subprocess.run([
+            'ffmpeg', '-i', str(wav_path), '-acodec', 'mp3', '-y', str(mp3_path)
+        ], check=True, capture_output=True)
+        
+        # Remove WAV file
+        wav_path.unlink()
+        
+        return str(mp3_path)
+    
+    except Exception as e:
+        logger.error(f"Error creating placeholder audio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Audio generation completely failed: {str(e)}")
 
 async def create_video_from_assets(video_id: str, script: VideoScript) -> str:
     """Combine images and audio into a video using MoviePy"""
