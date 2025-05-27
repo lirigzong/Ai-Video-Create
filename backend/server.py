@@ -234,7 +234,7 @@ async def create_video_from_assets(video_id: str, script: VideoScript) -> str:
             clips.append(image_clip)
         
         # Concatenate all clips
-        final_video = mp.concatenate_videoclips(clips, method="compose")
+        final_video = concatenate_videoclips(clips, method="compose")
         
         # Export video
         video_path = VIDEOS_DIR / f"{video_id}.mp4"
