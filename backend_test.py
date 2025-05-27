@@ -354,8 +354,18 @@ class AIVideoGeneratorTester:
         else:
             print("❌ Enhanced Error Handling: Issues detected")
         
-        # Overall video generation success
+        # 5. MoviePy Fix Verification
         video_gen_success = self.test_results.get("video_generation", {}).get("success", False)
+        video_file_accessible = self.test_results.get("video_file_accessible", False)
+        
+        if video_gen_success and video_file_accessible:
+            print("✅ MoviePy API Fix: Confirmed - Video generation completed successfully with working video file")
+        elif video_gen_success and not video_file_accessible:
+            print("⚠️ MoviePy API Fix: Partial - Video generation completed but video file may have issues")
+        else:
+            print("❌ MoviePy API Fix: Not confirmed - Video generation failed")
+        
+        # Overall video generation success
         if video_gen_success:
             print("✅ Video Generation Pipeline: Working end-to-end")
         else:
