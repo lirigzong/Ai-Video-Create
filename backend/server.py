@@ -354,12 +354,22 @@ async def get_video_status(video_id: str):
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
     
+    # Remove MongoDB ObjectId to avoid serialization issues
+    if "_id" in video:
+        del video["_id"]
+    
     return video
 
 @api_router.get("/videos")
 async def list_videos():
     """List all generated videos"""
     videos = await db.video_generations.find().sort("created_at", -1).to_list(100)
+    
+    # Remove MongoDB ObjectIds to avoid serialization issues
+    for video in videos:
+        if "_id" in video:
+            del video["_id"]
+    
     return [VideoGeneration(**video) for video in videos]
 
 @api_router.get("/videos/{video_id}.mp4")
