@@ -224,11 +224,11 @@ async def create_video_from_assets(video_id: str, script: VideoScript) -> str:
                 raise HTTPException(status_code=500, detail=f"Missing assets for segment {segment.segment_id}")
             
             # Load audio to get actual duration
-            audio_clip = mp.AudioFileClip(str(audio_path))
+            audio_clip = AudioFileClip(str(audio_path))
             actual_duration = audio_clip.duration
             
             # Create image clip with audio duration
-            image_clip = mp.ImageClip(str(image_path), duration=actual_duration)
+            image_clip = ImageClip(str(image_path), duration=actual_duration)
             image_clip = image_clip.set_audio(audio_clip)
             
             clips.append(image_clip)
