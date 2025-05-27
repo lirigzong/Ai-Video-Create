@@ -16,7 +16,8 @@ import json
 import base64
 from io import BytesIO
 from PIL import Image
-import moviepy.editor as mp
+import moviepy as mp
+from moviepy import VideoFileClip, AudioFileClip, ImageClip, concatenate_videoclips
 import asyncio
 import tempfile
 import shutil
