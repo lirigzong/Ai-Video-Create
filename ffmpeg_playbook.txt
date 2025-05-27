@@ -1,0 +1,238 @@
+<think>
+Okay, let's tackle this integration playbook for FFmpeg video processing in a FastAPI and React app. The user wants to combine AI-generated images, TTS audio, and subtitles. Hmm, where do I start?
+
+First, I need to structure the playbook according to the user's guidelines. They mentioned sections like installation, API setup, code examples for FastAPI and React, testing, and pitfalls. Let me make sure each section is covered.
+
+Installation steps for FFmpeg are crucial. The search results show different methods for Windows, macOS, and Linux. I should outline each OS clearly. Also, the user needs Python packages like ffmpeg-python, gTTS, and FastAPI. Got to include those pip install commands.
+
+Next, setting up the FastAPI backend. The user provided examples of using BackgroundTasks for logging. Maybe I can adapt that for video processing. The API endpoints will handle image processing, audio generation, and video assembly. I'll need to use ffmpeg-python to combine images into a video, add audio, and burn subtitles. Wait, the search results had code snippets for concatenating images and adding audio delays. I should integrate those.
+
+For the TTS part, gTTS is the way to go. The examples show saving an MP3 file, so I'll include a function that generates audio from text. Also, subtitles: the digitalocean tutorial mentioned using FFmpeg's filter to add them. Need to make sure the subtitle file is in the right format and burned into the video.
+
+Frontend with React. The user wants a form to upload images and input text. Using axios to send POST requests to the FastAPI endpoints. The Cloudinary blog had a React example with video streaming. Maybe a simple form with file upload and a submit button. After processing, display the video using a video tag.
+
+Testing procedures. FastAPI's TestClient can be used to test the endpoints. Check if the endpoints return the correct status codes and the video file is generated. Also, mention using pytest for automated testing.
+
+Common pitfalls: images not ordered correctly, audio sync issues, subtitle formatting. Need to address each with solutions, like sorting filenames numerically, using FFmpeg's aresample filter, and validating SRT files.
+
+Wait, the user asked to keep it short and precise, but also detailed. Have to balance conciseness with completeness. Make sure each code sample is essential and explained clearly. Avoid unnecessary steps. Check the search results again for best practices and relevant code snippets. For example, the FFmpeg command from Abyssale's blog uses -r for frame rate and -crf for quality. Include those parameters with explanations.
+
+Also, security with API keys isn't mentioned here, but the user's personalization mentioned including API key setup. However, the current query doesn't specify external APIs needing keys. Maybe skip that unless necessary. Focus on the local FFmpeg setup.
+
+Finally, ensure all citations from the search results are properly included. For example, the FFmpeg installation steps from Hostinger and DigitalOcean's subtitles tutorial. Each code block should reference the relevant sources.
+
+Okay, structure the playbook step by step, making sure each part is covered without fluff. Use code samples from the provided contexts, adapt them to the current use case, and cite sources appropriately. Keep paragraphs concise but informative, following the report format guidelines strictly. Avoid lists, use headers and paragraphs. Test the flow to ensure it's logical and covers all user requirements.
+</think>
+
+# Integration Playbook: FFmpeg Video Processing in FastAPI/React for AI Media Assembly  
+
+## Key Implementation Strategy  
+This guide implements a distributed media processing system using FastAPI for AI-generated media assembly and React for user interaction. The solution handles dynamic composition of image sequences, text-to-speech audio generation, and subtitle burning through orchestrated FFmpeg operations with parallel processing capabilities[1][6][15].  
+
+---
+
+## 1. Environment Configuration  
+
+### FFmpeg Installation  
+```bash  
+# Windows (Chocolatey)  
+choco install ffmpeg  
+
+# macOS (Homebrew)  
+brew install ffmpeg --with-libvpx --with-libvorbis  
+
+# Linux  
+sudo apt install ffmpeg libavcodec-extra  
+```  
+Verify with `ffmpeg -version`[16][17]  
+
+---
+
+## 2. FastAPI Backend Implementation  
+
+### Core Dependencies  
+```python  
+# requirements.txt  
+fastapi>=0.68.0  
+uvicorn>=0.15.0  
+ffmpeg-python>=0.2.0  
+gTTS>=2.3.2  
+python-multipart>=0.0.5  
+```  
+
+### Media Processing Service  
+```python  
+from fastapi import FastAPI, BackgroundTasks  
+from gtts import gTTS  
+import ffmpeg  
+import os  
+
+app = FastAPI()  
+
+def assemble_video(images: list, audio_path: str, subtitle_path: str):  
+    inputs = [ffmpeg.input(img) for img in sorted(images)]  
+    
+    # Image sequence processing  
+    video = ffmpeg.filter(  
+        inputs, 'concat', n=len(inputs), v=1, a=0  
+    ).filter('fps', fps=24).filter('scale', 1920, 1080)  
+
+    # Audio integration  
+    audio = ffmpeg.input(audio_path).audio  
+
+    # Subtitle burning  
+    video = ffmpeg.filter(  
+        video, 'subtitles', subtitle_path,  
+        force_style='Fontsize=24,PrimaryColour=0xFFFFFF'  
+    )  
+
+    # Output configuration  
+    ffmpeg.output(  
+        video, audio, 'output.mp4',  
+        vcodec='libx264', crf=18,  
+        preset='veryfast', movflags='faststart'  
+    ).run(overwrite_output=True)  
+
+@app.post("/process-media")  
+async def create_media(  
+    images: list[str],  
+    text: str,  
+    background_tasks: BackgroundTasks  
+):  
+    # TTS Generation  
+    tts = gTTS(text=text, lang='en', slow=False)  
+    tts.save("audio.mp3")  
+
+    # Subtitle creation  
+    with open("subs.srt", "w") as f:  
+        f.write(f"1\n00:00:00,000 -> 00:00:{len(images)/24},000\n{text}")  
+
+    # Background video assembly  
+    background_tasks.add_task(  
+        assemble_video,  
+        images=images,  
+        audio_path="audio.mp3",  
+        subtitle_path="subs.srt"  
+    )  
+
+    return {"status": "processing_started"}  
+```  
+[1][6][10][15]  
+
+---
+
+## 3. React Frontend Implementation  
+
+### Media Upload Component  
+```jsx  
+import React, { useState } from 'react';  
+import axios from 'axios';  
+
+const MediaUploader = () => {  
+  const [files, setFiles] = useState([]);  
+  const [text, setText] = useState('');  
+
+  const handleSubmit = async (e) => {  
+    e.preventDefault();  
+    const formData = new FormData();  
+    
+    files.forEach((file) => {  
+      formData.append('images', file);  
+    });  
+    formData.append('text', text);  
+
+    await axios.post(  
+      'http://localhost:8000/process-media',  
+      formData  
+    );  
+  };  
+
+  return (  
+    <form onSubmit={handleSubmit}>  
+      <input  
+        type="file"  
+        multiple  
+        onChange={(e) => setFiles([...e.target.files])}  
+      />  
+      <textarea  
+        value={text}  
+        onChange={(e) => setText(e.target.value)}  
+      />  
+      <button type="submit">Generate Video</button>  
+    </form>  
+  );  
+};  
+```  
+[7][18][19]  
+
+---
+
+## 4. Quality Assurance Procedures  
+
+### Unit Testing Framework  
+```python  
+from fastapi.testclient import TestClient  
+from unittest.mock import patch  
+
+client = TestClient(app)  
+
+def test_media_processing():  
+    with patch('ffmpeg.run') as mock_ffmpeg:  
+        response = client.post(  
+            "/process-media",  
+            data={"text": "test content"},  
+            files=[("images", ("img1.jpg", b"fake_image"))]  
+        )  
+        assert response.status_code == 200  
+        mock_ffmpeg.assert_called_once()  
+```  
+[18]  
+
+---
+
+## 5. Optimization Patterns  
+
+1. **Parallel Encoding**:  
+   ```python  
+   ffmpeg.output(..., threads=os.cpu_count()//2)  
+   ```  
+2. **GPU Acceleration**:  
+   ```python  
+   ffmpeg.input(...).output(..., vcodec='h264_nvenc')  
+   ```  
+3. **Memory Management**:  
+   ```python  
+   ffmpeg.input(..., format='image2pipe', r=24)  
+   ```  
+
+---
+
+## 6. Error Mitigation Strategies  
+
+| Issue                | Solution                          |  
+|----------------------|-----------------------------------|  
+| Image sequence breaks| Natural sort filenames [1][3]     |  
+| Audio desync         | Use `aresample=async=1` filter [4]|  
+| Subtitle rendering   | Validate SRT timing formats [5]   |  
+| Memory overflow      | Enable hardware acceleration [15] |  
+
+---
+
+## Implementation Validation  
+
+1. **Latency Testing**:  
+   ```bash  
+   ab -n 100 -c 10 http://localhost:8000/process-media  
+   ```  
+
+2. **Media Validation**:  
+   ```python  
+   ffprobe -v error -show_streams output.mp4  
+   ```  
+
+3. **Subtitle Integrity Check**:  
+   ```bash  
+   ffmpeg -i output.mp4 -map 0:s:0 subs.out  
+   ```  
+
+This implementation provides enterprise-grade media processing capabilities with horizontal scaling potential through containerization and job queue systems.
