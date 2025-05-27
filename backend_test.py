@@ -167,7 +167,7 @@ class AIVideoGeneratorTester:
         print(f"Video generation started with ID: {video_id}")
         
         # Poll for status updates
-        max_polls = 15  # Increased for longer tests
+        max_polls = 30  # Increased for longer tests
         polls = 0
         status_history = []
         
@@ -208,6 +208,23 @@ class AIVideoGeneratorTester:
                     "final_status": "completed",
                     "video_url": status_response.get("video_url")
                 }
+                
+                # Verify video file exists
+                if status_response.get("video_url"):
+                    video_url = f"{self.base_url}{status_response.get('video_url')}"
+                    print(f"Testing video URL: {video_url}")
+                    try:
+                        video_response = requests.get(video_url)
+                        if video_response.status_code == 200 and video_response.headers.get('Content-Type') == 'video/mp4':
+                            print("✅ Video file is accessible and has correct content type")
+                            self.test_results["video_file_accessible"] = True
+                        else:
+                            print(f"❌ Video file check failed: Status {video_response.status_code}, Content-Type: {video_response.headers.get('Content-Type')}")
+                            self.test_results["video_file_accessible"] = False
+                    except Exception as e:
+                        print(f"❌ Error accessing video file: {str(e)}")
+                        self.test_results["video_file_accessible"] = False
+                
                 return True, status_response
             elif status == 'failed':
                 error_msg = status_response.get('error', 'Unknown error')
