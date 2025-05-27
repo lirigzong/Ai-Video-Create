@@ -27,3 +27,4 @@ openai>=1.40.0
 ffmpeg-python>=0.2.0
 pillow>=10.0.0
 moviepy>=1.0.3
+scipy>=1.11.0
