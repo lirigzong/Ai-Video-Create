@@ -296,7 +296,7 @@ async def create_video_from_assets(video_id: str, script: VideoScript) -> str:
             
             # Create image clip with audio duration
             image_clip = ImageClip(str(image_path), duration=actual_duration)
-            image_clip = image_clip.set_audio(audio_clip)
+            image_clip = image_clip.with_audio(audio_clip)
             
             clips.append(image_clip)
         
