@@ -172,9 +172,17 @@ async def generate_script_with_deepseek(prompt: str, duration: int, segments: in
 async def generate_image_with_dalle(prompt: str, segment_id: int, video_id: str) -> str:
     """Generate an image using DALL-E 3"""
     try:
+        # Clean and improve the prompt for DALL-E 3
+        clean_prompt = prompt.strip()
+        if len(clean_prompt) > 1000:
+            clean_prompt = clean_prompt[:1000]  # DALL-E 3 has prompt length limits
+        
+        # Add style guidance for better results
+        enhanced_prompt = f"High quality, photorealistic: {clean_prompt}. Professional lighting, detailed, 16:9 aspect ratio suitable for video."
+        
         response = openai_client.images.generate(
             model="dall-e-3",
-            prompt=f"Photorealistic image: {prompt}",
+            prompt=enhanced_prompt,
             size="1792x1024",  # 16:9 aspect ratio for videos
             quality="hd",
             response_format="b64_json"
@@ -191,7 +199,30 @@ async def generate_image_with_dalle(prompt: str, segment_id: int, video_id: str)
     
     except Exception as e:
         logger.error(f"Error generating image: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+        # If DALL-E fails, create a simple colored placeholder image
+        return await create_placeholder_image(prompt, segment_id, video_id)
+
+async def create_placeholder_image(prompt: str, segment_id: int, video_id: str) -> str:
+    """Create a placeholder image when DALL-E fails"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        
+        # Create a simple image with text
+        img = Image.new('RGB', (1792, 1024), color=(73, 109, 137))
+        d = ImageDraw.Draw(img)
+        
+        # Add text
+        text = f"Segment {segment_id}\n{prompt[:100]}..."
+        d.text((50, 500), text, fill=(255, 255, 255))
+        
+        image_path = IMAGES_DIR / f"{video_id}_segment_{segment_id}.jpg"
+        img.save(image_path)
+        
+        return str(image_path)
+    
+    except Exception as e:
+        logger.error(f"Error creating placeholder image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Image generation completely failed: {str(e)}")
 
 async def generate_audio_with_tts(text: str, segment_id: int, video_id: str) -> str:
     """Generate audio using OpenAI TTS"""
