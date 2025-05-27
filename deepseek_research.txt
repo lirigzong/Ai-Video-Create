@@ -1,0 +1,225 @@
+<think>
+Okay, let's tackle this integration playbook for DeepSeek API with FastAPI and React. First, I need to outline the main sections as per the user's request. Installation comes first. The user wants FastAPI setup, so I'll check the search results for FastAPI installation steps. From result [5], there's a mention of pip installing FastAPI, uvicorn, and SQLAlchemy. But since this is about API integration, maybe SQLAlchemy isn't needed here. I'll stick with FastAPI and uvicorn.
+
+Next, API key setup. The search results [4] and [7] explain how to generate a DeepSeek API key. The user needs to sign up on DeepSeek's platform, create an API key, and store it securely. I should mention environment variables or a .env file here, as seen in result [2] and [7].
+
+Code examples for FastAPI backend. Looking at result [7], there's a Python example using the OpenAI SDK. Since DeepSeek's API is compatible, I can adapt that. Also, result [3] shows a similar approach with requests. Maybe provide both options? But the user specified FastAPI, so creating an endpoint that uses the requests library to call DeepSeek's API makes sense. I'll structure the FastAPI endpoint to accept parameters like video duration and structure, then generate the script accordingly.
+
+Frontend integration with React. Result [17] has code snippets for React components making API calls using fetch. I'll include a simple React component that sends a request to the FastAPI backend. Also, CORS configuration in FastAPI is important, as mentioned in [18], so adding the CORSMiddleware setup is necessary.
+
+Testing procedures. Result [16] discusses using pytest for FastAPI testing. I'll outline test cases for the script generation endpoint, checking status codes and response structure. Including a pytest example with test_client would be helpful.
+
+Common pitfalls. From the sources, API key exposure is a big one. Emphasize not hardcoding keys. Also, handling API rate limits and structuring the script according to video segments. The user mentioned video duration and structure, so maybe breaking the script into segments based on duration, using the AAA formula from [9] and [12].
+
+Installation steps need to cover both backend (FastAPI, python-dotenv, requests) and frontend (React, axios). The React setup can use create-react-app with TypeScript and Tailwind as in [19], but the user might prefer a simpler setup. Maybe just the fetch example without extra styling.
+
+Including code samples for both FastAPI and React. For FastAPI, the endpoint will take video parameters, call DeepSeek's API, and return the structured script. In React, a form to input parameters and display the generated script.
+
+Testing with pytest, checking if the endpoint returns the expected structure. Also, error handling for invalid API keys or incorrect parameters.
+
+Finally, security best practices: using environment variables, validating input on the backend, and securing CORS settings.
+
+I need to make sure all these parts are covered concisely, as the user asked to keep it short and precise. Each section should have the necessary code snippets and explanations, citing the relevant sources where applicable. Also, ensure that the response follows the report format with headers and paragraphs, avoiding lists and using citations properly.
+</think>
+
+# Comprehensive Integration Playbook for DeepSeek API in FastAPI-React Applications
+
+This guide provides a technical blueprint for implementing DeepSeek's script generation capabilities within video production workflows using FastAPI and React. The integration optimizes for video duration constraints and segment-based script structuring[13][19].
+
+## 1. Environment Setup and Installation
+
+### Backend Configuration
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install core dependencies
+pip install fastapi uvicorn python-dotenv requests
+```
+
+### Frontend Setup
+```bash
+npx create-react-app video-editor-frontend --template typescript
+cd video-editor-frontend
+npm install axios react-player @tailwindcss/typography
+```
+
+## 2. Secure API Key Management
+
+Implement environment variables using `.env`:
+```python
+# .env
+DEEPSEEK_API_KEY=sk-your-key-here
+API_BASE_URL=https://api.deepseek.com
+```
+
+Configure FastAPI middleware for security:
+```python
+from fastapi import FastAPI, Security
+from fastapi.security import APIKeyHeader
+
+api_key_header = APIKeyHeader(name="X-API-KEY")
+app = FastAPI()
+
+@app.post("/generate-script")
+async def generate_script(
+    params: ScriptRequest,
+    api_key: str = Security(api_key_header)
+):
+    validate_api_key(api_key)  # Custom validation logic[4][7]
+```
+
+## 3. Script Generation Endpoint Implementation
+
+```python
+from fastapi import HTTPException
+import requests
+
+def generate_segmented_script(duration: int, segments: int):
+    segment_duration = duration / segments
+    prompt = f"""Create video script with {segments} segments. 
+    Use AAAA structure[9][12]. Max segment duration: {segment_duration}s"""
+    
+    response = requests.post(
+        f"{os.getenv('API_BASE_URL')}/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('DEEPSEEK_API_KEY')}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "deepseek-chat",
+            "messages": [{
+                "role": "user", 
+                "content": prompt
+            }],
+            "temperature": 0.7
+        }
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=503,
+            detail="DeepSeek API unavailable"
+        )
+    
+    return parse_script_segments(response.json()[7][20])
+```
+
+## 4. Frontend Integration with React
+
+```tsx
+import React, { useState } from 'react';
+import axios from 'axios';
+
+const ScriptGenerator: React.FC = () => {
+  const [script, setScript] = useState<ScriptSegment[]>([]);
+  
+  const generateScript = async (duration: number, segments: number) => {
+    try {
+      const response = await axios.post('/api/generate-script', {
+        duration,
+        segments
+      }, {
+        headers: {
+          'X-API-KEY': process.env.REACT_APP_API_KEY
+        }
+      });
+      
+      setScript(response.data.segments);
+    } catch (error) {
+      console.error('Generation failed:', error);
+    }
+  };
+
+  return (
+    <div className="script-editor">
+      <DurationInput onSubmit={generateScript} />
+      <ScriptPreview segments={script} />
+    </div>
+  );
+};
+```
+
+## 5. Testing Strategy
+
+### Unit Tests
+```python
+from fastapi.testclient import TestClient
+
+def test_script_generation():
+    client = TestClient(app)
+    response = client.post(
+        "/generate-script",
+        json={"duration": 300, "segments": 5},
+        headers={"X-API-KEY": "valid-key"}
+    )
+    assert response.status_code == 200
+    assert len(response.json()['segments']) == 5
+```
+
+### Integration Tests
+```javascript
+// Frontend test
+test('generates valid script structure', async () => {
+  const { getByText } = render(<ScriptGenerator />);
+  fireEvent.click(getByText('Generate'));
+  
+  await waitFor(() => {
+    expect(screen.getByTestId('script-container')).toHaveTextContent(/Intro/i);
+  });
+});
+```
+
+## 6. Performance Optimization
+
+Implement response caching with Redis:
+```python
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+
+FastAPICache.init(
+    RedisBackend(redis_connection),
+    prefix="script-cache",
+    expire=3600
+)
+
+@app.post("/generate-script")
+@cache()
+async def generate_script(params: ScriptRequest):
+    # Generation logic[13][17]
+```
+
+## 7. Security Best Practices
+
+1. **Key Rotation**: Implement automated key rotation every 90 days
+2. **Rate Limiting**:
+```python
+from fastapi import FastAPI
+from fastapi.middleware import Middleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+app = FastAPI(middleware=[
+    Middleware(TrustedHostMiddleware, allowed_hosts=["*.example.com"]),
+    Middleware(RateLimitMiddleware, 
+               limit=100, 
+               interval=300)
+])
+```
+
+## 8. Deployment Configuration
+
+Docker setup for production:
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+This implementation provides a complete framework for video script generation with segment-aware structure optimization. The system handles typical video durations (30s-10m) with configurable segment counts[11][13].
